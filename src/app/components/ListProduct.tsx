@@ -1,6 +1,6 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
 import { Price } from "../../../@types";
 import {
     Card,
@@ -11,17 +11,22 @@ import {
     CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import SubscribeButton from "./ButtonCheckout";
 
-interface FormInputs {
-    name: string;
-    price: number;
-    recurring: string;
+interface Customer {
+    id: string;
+    name?: string;
+    email?: string;
 }
 
 const ListProduct = () => {
     const [prices, setPrices] = useState<Price[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const { register, handleSubmit, reset } = useForm<FormInputs>();
+    const [selectedCustomer, setSelectedCustomer] = useState<
+        Customer | undefined
+    >();
+    const [isLoading, setIsLoading] = useState(true);
 
     async function fetchPrices(): Promise<Price[]> {
         const response = await fetch("/api/prices");
@@ -32,83 +37,46 @@ const ListProduct = () => {
         return data;
     }
 
+    async function fetchCustomers(): Promise<Customer[]> {
+        const response = await fetch("/api/customers/list");
+        if (!response.ok) {
+            throw new Error("Failed to fetch customers");
+        }
+        const data = await response.json();
+        return data.customers;
+    }
+
     useEffect(() => {
         (async () => {
             try {
                 const result = await fetchPrices();
                 setPrices(result);
+                const customerData = await fetchCustomers();
+                setCustomers(customerData);
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Unknown error");
+            } finally {
+                setIsLoading(false);
             }
         })();
     }, []);
 
-    const onSubmit: SubmitHandler<FormInputs> = (data) => {
-        const newPrice: Price = {
-            id: `temp_${Date.now()}`,
-            object: "price",
-            active: true,
-            billing_scheme: "per_unit",
-            created: Date.now(),
-            currency: "usd",
-            custom_unit_amount: null,
-            livemode: false,
-            lookup_key: null,
-            metadata: {},
-            nickname: null,
-            product: {
-                id: `prod_${Date.now()}`,
-                object: "product",
-                active: true,
-                attributes: [],
-                created: Date.now(),
-                default_price: `temp_${Date.now()}`,
-                description: null,
-                images: [],
-                livemode: false,
-                marketing_features: [],
-                metadata: {},
-                name: data.name,
-                package_dimensions: null,
-                shippable: null,
-                statement_descriptor: null,
-                tax_code: null,
-                type: "service",
-                unit_label: null,
-                updated: Date.now(),
-                url: null,
-            },
-            recurring: {
-                interval: data.recurring,
-                interval_count: 1,
-                meter: null,
-                trial_period_days: null,
-                usage_type: "licensed",
-            },
-            tax_behavior: "unspecified",
-            tiers_mode: null,
-            transform_quantity: null,
-            type: "recurring",
-            unit_amount: data.price * 100,
-            unit_amount_decimal: (data.price * 100).toString(),
-        };
-
-        setPrices((prev) => [newPrice, ...prev]);
-        reset();
-    };
+    if (isLoading) {
+        return <div className="text-center mt-10">Loading products...</div>;
+    }
 
     if (error) {
         return <div>Error: {error}</div>;
     }
 
     return (
-        <div className="flex h-screen">
-            <div className="p-4 flex flex-wrap gap-4 justify-center overflow-y-auto w-full">
-                <h2>List package</h2>
+        <div className="mt-5">
+            <h2 className="my-10 text-4xl font-bold uppercase">List package</h2>
+            <div className="flex items-center justify-center gap-5">
                 {prices.map((price) => (
                     <Card
                         key={price.id}
-                        className="w-80 h-48 shadow-md overflow-hidden"
+                        className="w-80 shadow-md p-5"
                     >
                         <CardHeader>
                             <CardTitle>{price.product.name}</CardTitle>
@@ -119,15 +87,14 @@ const ListProduct = () => {
                         </CardHeader>
                         <CardContent>
                             <p className="text-lg font-semibold">
-                                Price: {price.currency.toUpperCase()}{" "}
-                                {price.unit_amount / 100}
+                                {price.unit_amount / 100}{" "}
+                                {price.currency.toUpperCase()}/{" "}
+                                {price.recurring?.interval}
                             </p>
-                            <p className="text-sm text-gray-500">
-                                Recurring: {price.recurring?.interval}
-                            </p>
+                            <p className="text-sm text-gray-500"></p>
                         </CardContent>
                         <CardFooter>
-                            <Button>Register</Button>
+                            <SubscribeButton priceId={price.id} userId={selectedCustomer?.id} />
                         </CardFooter>
                     </Card>
                 ))}
