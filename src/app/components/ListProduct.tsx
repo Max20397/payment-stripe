@@ -70,8 +70,10 @@ const ListProduct = () => {
     }
 
     return (
-        <div className="mt-5">
-            <h2 className="my-10 text-4xl font-bold uppercase">List package</h2>
+        <div className="my-5">
+            <h1 className="text-2xl font-bold mb-4">
+                Packages
+            </h1>
             <div className="flex items-center justify-center gap-5">
                 {prices.map((price) => (
                     <Card
@@ -94,7 +96,10 @@ const ListProduct = () => {
                             <p className="text-sm text-gray-500"></p>
                         </CardContent>
                         <CardFooter>
-                            <SubscribeButton priceId={price.id} userId={selectedCustomer?.id} />
+                            <SubscribeButton
+                                priceId={price.id}
+                                userId={selectedCustomer?.id}
+                            />
                         </CardFooter>
                     </Card>
                 ))}

@@ -4,12 +4,10 @@ import Stripe from 'stripe';
 import fs from 'fs';
 import path from 'path';
 
-// Khởi tạo Stripe client
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-07-30.basil', // Sử dụng phiên bản API mới nhất
+  apiVersion: '2025-07-30.basil', 
 });
 
-// Xử lý raw body
 async function getRawBody(req: Request): Promise<string> {
   const text = await req.text();
   return text;
@@ -24,7 +22,6 @@ export async function POST(req: Request) {
     let event: Stripe.Event;
 
     try {
-      // Verify webhook signature
       event = stripe.webhooks.constructEvent(
         body,
         sig,
@@ -35,12 +32,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: (err as Error).message }, { status: 400 });
     }
 
-    // Log the event to a file
-    const logFilePath = path.resolve(__dirname, '../../../logs/webhook-events.log');
-    const logEntry = `${new Date().toISOString()} - Event: ${event.type} - ID: ${event.id}\n`;
-    fs.appendFileSync(logFilePath, logEntry);
+    // Ensure the logs directory exists
+    const logsDir = path.resolve(process.cwd(), 'src/logs'); // Update path to src/logs within the project
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
 
-    // Xử lý các sự kiện
+    // Log the event to a file
+    const logFilePath = path.join(logsDir, 'webhook-events.log');
+    const customerId = (event.data.object as Stripe.Customer)?.id || 'N/A'; // Extract customer ID if available
+    const logEntry = `${new Date().toISOString()} - Event: ${event.type} - ID: ${event.id} - Customer ID: ${customerId}\n`;
+
+    try {
+      fs.appendFileSync(logFilePath, logEntry);
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error(`Failed to write to log file: ${err.message}`);
+      } else {
+        console.error('Failed to write to log file: Unknown error');
+      }
+    }
+
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object as Stripe.Checkout.Session;
